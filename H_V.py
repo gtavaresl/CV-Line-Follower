@@ -9,9 +9,6 @@ import RPi.GPIO as GPIO
 COLOR_RED   = [0,0,255]
 COLOR_GREEN = [0,255,0]
 COLOR_BLUE  = [255,0,0]
-GPIOMotor1 = 33 #motor da esquerda
-GPIOMotor2 = 12 #motor da direita
-FREQUENCY = 1000
 V0 = 45
 V_ROT = 30
 KP = 1.6*V0/90
@@ -62,28 +59,30 @@ textPrint = TextPrint()
 
 def line_detection(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 75, 100, apertureSize = 3)
-    lines = cv2.HoughLines(edges,1,np.pi/180, 15)
+    edges = cv2.Canny(gray, 50, 75, apertureSize = 3)
+    lines = cv2.HoughLines(edges,1,np.pi/180, 50)
 
     # se nao encontrar linha retorna os valores default
     if lines is not None:
-        for r,theta in lines[0]:
-            a = np.cos(theta)
-            b = np.sin(theta)
-            x0 = a*r
-            y0 = b*r
-            x1 = int(x0+1000*(-b))
-            y1 = int(y0+1000*(a))
-            x2 = int(x0-1000*(-b))
-            y2 = int(y0-1000*(a))
-            cv2.line(frame,(x1,y1), (x2,y2), COLOR_RED, 2)
-            # distancia do meio ao ponto na reta na base do frame 
-            if x1 != x2: c_ang = (y1-y2)/(x1-x2)
-            else: c_ang = 1000
-            px_meio = (RES_X-1)//2
-            px_linha = ((RES_Y-1)-(y1-(c_ang*x1)))//c_ang
-            dist_meio = px_linha - px_meio
-            return theta, dist_meio
+        for i in range(len(lines)):
+            for r,theta in lines[i]:
+                if(np.abs(get_angle(theta)) < 70):
+                    a = np.cos(theta)
+                    b = np.sin(theta)
+                    x0 = a*r
+                    y0 = b*r
+                    x1 = int(x0+1000*(-b))
+                    y1 = int(y0+1000*(a))
+                    x2 = int(x0-1000*(-b))
+                    y2 = int(y0-1000*(a))
+                    cv2.line(frame,(x1,y1), (x2,y2), COLOR_RED, 2)
+                    # distancia do meio ao ponto na reta na base do frame 
+                    if x1 != x2: c_ang = (y1-y2)/(x1-x2)
+                    else: c_ang = 1000
+                    px_meio = (RES_X-1)//2
+                    px_linha = ((RES_Y-1)-(y1-(c_ang*x1)))//c_ang
+                    dist_meio = px_linha - px_meio
+                    return theta, dist_meio
 
     return 0, 0
 
@@ -112,6 +111,10 @@ def get_angle(coef_ang):
         angle -= 180
     return angle
 
+# GPIO settings
+GPIOMotor1 = 33 #motor da esquerda
+GPIOMotor2 = 12 #motor da direita
+FREQUENCY = 1000
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BOARD) 
 GPIO.setup(GPIOMotor1, GPIO.OUT)
@@ -121,6 +124,7 @@ pwm2 = GPIO.PWM(GPIOMotor2, FREQUENCY)
 pwm1.start(0)
 pwm2.start(0)
 
+# Video settings
 cap = cv2.VideoCapture(0)
 cap.set(3, RES_X)
 cap.set(4, RES_Y)
